@@ -1,6 +1,6 @@
 use sha2::{Sha256,Digest};
 
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub struct MerkleNode{
     pub hash: [u8;32],
     pub left: Option<Box<MerkleNode>>,
@@ -23,6 +23,52 @@ pub struct MerkelTree{
     pub root: Option<MerkleNode>
 }
 impl MerkelTree{
+    pub fn create_internal_node(left_child: Box<MerkleNode>, right_child: Box<MerkleNode>)-> MerkleNode{
+        let mut combined_hash_data = [0u8;64];
+        combined_hash_data[..32].copy_from_slice(&left_child.hash);
+        combined_hash_data[32..].copy_from_slice(&right_child.hash);
+        let new_hash = calculate_hash_digest(&combined_hash_data);
+         MerkleNode::new(new_hash,Some(left_child),Some(right_child))
+
+    }
+    pub fn from_data(data: &[&[u8]])->Self{
+        if data.is_empty(){
+            return MerkelTree::new()
+        };
+
+
+        let mut  nodes : Vec<MerkleNode> =data.iter().map(|d|{
+            let hash = calculate_hash_digest(d);
+            MerkleNode::new(hash,None,None)
+        }).collect();
+
+        while nodes.len() > 1 {
+            if nodes.len() % 2 != 0 {
+                nodes.push(nodes.last().unwrap().clone());
+            }
+
+           let next_level_nodes : Vec<MerkleNode> = nodes.chunks(2).map(|pair|{
+               let left = pair[0].clone();
+               let right = pair[1].clone();
+               MerkelTree::create_internal_node(Box::new(left), Box::new(right))
+                    }).collect::<Vec<MerkleNode>>();
+
+            nodes = next_level_nodes;
+
+
+        }
+
+
+
+
+
+   MerkelTree{
+       root:nodes.pop()
+   }
+
+
+
+    }
     pub fn new()-> Self{
         MerkelTree{
             root:None
@@ -36,10 +82,11 @@ let mut hasher = Sha256::new();
     result.into()
 }
 
-pub fn calaculate_hash_digest(data:&[u8])->[u8;32]{
+pub fn calculate_hash_digest(data:&[u8])->[u8;32]{
     let mut result = Sha256::digest(data);
     result.into()
 }
+
 
 
 
